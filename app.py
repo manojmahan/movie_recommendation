@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import pickle
+
 import requests
 from datetime import timedelta
 from ast import literal_eval
@@ -64,12 +64,7 @@ def get_video_link(movie_id):
     return full_video_path
 
 def create_similarity():
-    dataset = pd.read_csv('final_dataset.csv')
-    # creating a count matrix
-    countvec = CountVectorizer(stop_words="english")
-    count_matrix = countvec.fit_transform(dataset["soup"])
-    # creating a similarity score matrix
-    cosin_sim = cosine_similarity(count_matrix,count_matrix)
+    cosin_sim = pickle.load(open("cosin_sim.pkl", "rb" ) )
     return cosin_sim
 
 
