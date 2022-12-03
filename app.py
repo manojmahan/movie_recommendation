@@ -1,16 +1,25 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import requests
 from datetime import timedelta
 from ast import literal_eval
-
+import bs4 as bs
+import urllib.request
+import pickle
 
 import base64
 import math
 
+
 millnames = ['',' Thousand',' Million',' Billion',' Trillion']
+model = pickle.load(open("model.pkl","rb"))
+vectorizer = pickle.load(open("transform.pkl","rb"))
+
+def highlight_survived(s):
+    return ['background-color: red']*len(s)
 
 def millify(n):
     n = float(n)
@@ -108,6 +117,30 @@ def recommend_genre(selected_genre):
         recommended_movie_video_genre.append(get_video_link(movie_id))
     return recommended_movie_names_genre,recommended_movie_posters_genre,recommended_movie_video_genre
 
+def sentiment_df(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/external_ids?api_key=6191299c63f9897b9302669be6ecc18b"
+    data = requests.get(url)
+    data = data.json()
+    imdb_id  =data["imdb_id"]
+    sauce = urllib.request.urlopen('https://www.imdb.com/title/{}/reviews?ref_=tt_ov_rt'.format(imdb_id)).read()
+    soup1 = bs.BeautifulSoup(sauce,'lxml')
+    soup_result = soup1.find_all("div",{"class":"text show-more__control"})
+    reviews_list = [] # list of reviews
+    reviews_status = [] # list of comments (good or bad)
+    for reviews in soup_result:
+        if reviews.string:
+            reviews_list.append(reviews.string)
+            # passing the review to our model
+            movie_review_list = np.array([reviews.string])
+            movie_vector = vectorizer.transform(movie_review_list)
+            pred = model.predict(movie_vector)
+            reviews_status.append('Good' if pred else 'Bad')
+    reviews_dataframe = pd.DataFrame(reviews_list,columns=["reviews"])
+    reviews_dataframe["Sentiments"] = reviews_status
+    if reviews_dataframe.shape[0]>10 :
+        reviews_dataframe= reviews_dataframe[0:10]
+    return reviews_dataframe
+
 
 st.markdown(f'''<h1 style="color:white;">Movie Recommender System</h1>''',unsafe_allow_html=True)
 dataset = pd.read_csv("final_dataset.csv")
@@ -115,7 +148,7 @@ movie_list = dataset['title_x'].values
 st.markdown(f'''<h1 style="font-size:1rem; color: #FFFFFF">Type or select a movie from the dropdown</h1>''',unsafe_allow_html=True)
 selected_movie = st.selectbox('_',
     movie_list)
-features = ["cast","crew","genres","keywords","production_companies","production_countries","spoken_languages"]
+features = ["genres"]
 for feature in features:
     dataset[feature]= dataset[feature].apply(literal_eval)
 d = dict()
@@ -148,7 +181,7 @@ if st.button('Show Recommendation according to movie'):
     with col1111:
         st.markdown(f'''
                         <a href={full_video}>
-                            <img src={full_path_select} width="300" />
+                            <img src={full_path_select} width="280" />
                         </a>''',
                         unsafe_allow_html=True
                     )
@@ -169,6 +202,7 @@ if st.button('Show Recommendation according to movie'):
     
     "---"
     st.markdown(f'''<h1 style="font-size:3rem; color: #FFFFFF">Top five related movies</h1>''',unsafe_allow_html=True)
+    st.markdown(f'''<h1 style="font-size:1rem; color: #FFFFFF">Click on any poster to watch the trailer</h1>''',unsafe_allow_html=True)
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.markdown(f'''
@@ -211,6 +245,10 @@ if st.button('Show Recommendation according to movie'):
                         </a>''',
                         unsafe_allow_html=True
                     )
+    sentiment_dataframe  = sentiment_df(selected_movie_id)
+    dataframe_html = sentiment_dataframe.to_html()
+    st.markdown(f'''<h1 style="font-size:3rem; color: #FFFFFF";>Sentiment Analysis on User Reviews</h1>''',unsafe_allow_html=True)
+    st.markdown(f'''<h1 style="font-size:0.8rem; color: #FFFFFF" <body style="background-color:powderblue;"> >{dataframe_html} </body> </h1>''',unsafe_allow_html=True)
     "---"
 st.markdown(f'''<h1 style="font-size:1rem; color: #FFFFFF">Type or select a genre from the dropdown</h1>''',unsafe_allow_html=True)
 selected_genre = st.selectbox(
