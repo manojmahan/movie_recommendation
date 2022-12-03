@@ -1,6 +1,6 @@
 # movie_recommendation
  
-Deployed model on AWS using streamlit and HTML 
+Deployed model on AWS using streamlit and HTML and Performed Sentiment Analysis on User Reviews
 
 Live Demo http://ec2-54-178-27-2.ap-northeast-1.compute.amazonaws.com/
 ### Demo
